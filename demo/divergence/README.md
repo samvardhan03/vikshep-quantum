@@ -177,8 +177,12 @@ native code. The crash came during the first evaluation: a 16-qubit circuit
 saving the state vector, the probabilities and four expectation values. The
 double-precision runs completed.
 
-We did not narrow it down to one instruction, and it has not been reported
-to the Qiskit Aer project.
+We narrowed it down afterwards: one RZ gate on a 2-qubit register is
+enough. In single precision on Windows x86_64, the 12-line reproducer
+crashed in 20 of 20 runs with Aer 0.18.4 and with 0.17.2, with an access
+violation or heap corruption (0xC0000374). Double precision never crashed,
+and on Linux it never crashed. It is reported as
+[Qiskit/qiskit-aer#2541](https://github.com/Qiskit/qiskit-aer/issues/2541).
 
 ### 7. Vikshep Quantum: the same bytes everywhere
 
