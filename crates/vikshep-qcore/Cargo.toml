@@ -1,0 +1,20 @@
+[package]
+name = "vikshep-qcore"
+description = "VQS-1 core: Tier-1 complex arithmetic, gate matrices, circuits, reference kernels and the backend trait"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[dependencies]
+vikshep-detmath.workspace = true
+vikshep-numerics.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,18 @@
+[package]
+name = "vikshep-qconformance"
+description = "VQS-1 conformance suite: cases, expected vectors and runner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+vikshep-qcore.workspace = true
+vikshep-statevec.workspace = true
+vikshep-numerics.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

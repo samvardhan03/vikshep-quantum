@@ -1,0 +1,36 @@
+[package]
+name = "vikshep-quantum-py"
+description = "Python bindings (distribution vikshep-quantum, module vikshep_quantum)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lib]
+name = "vikshep_quantum_py"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Enabled by maturin (pyproject.toml); builds the extension module.
+python = ["dep:pyo3", "dep:numpy", "pyo3/abi3-py310", "pyo3/extension-module", "pyo3/num-complex"]
+
+[dependencies]
+vikshep-qcore.workspace = true
+vikshep-statevec.workspace = true
+vikshep-qconformance.workspace = true
+vikshep-numerics.workspace = true
+pyo3 = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
+
+# This crate does not inherit the workspace lint table: it contains a
+# foreign-function interface (PyO3), whose generated code needs `unsafe`, so
+# `unsafe_code = "forbid"` (workspace default) cannot apply. Hand-written
+# unsafe operations must sit in explicit, documented `unsafe` blocks.
+[lints.rust]
+unsafe_code = "allow"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"

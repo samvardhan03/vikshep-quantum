@@ -1,0 +1,23 @@
+[package]
+name = "vikshep-statevec"
+description = "VQS-1 CPU reference state-vector simulator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+
+[dependencies]
+vikshep-qcore.workspace = true
+vikshep-numerics.workspace = true
+
+[dev-dependencies]
+vikshep-detmath.workspace = true
+
+[lints]
+workspace = true

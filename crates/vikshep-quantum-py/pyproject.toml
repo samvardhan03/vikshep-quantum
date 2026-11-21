@@ -1,0 +1,32 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "vikshep-quantum"
+description = "Deterministic quantum state-vector simulator: bit-identical results on every platform, with provenance"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+authors = [{ name = "Samvardhan Singh" }]
+dependencies = ["numpy>=1.22"]
+dynamic = ["version"]
+keywords = ["quantum", "simulator", "state-vector", "deterministic", "reproducibility"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.urls]
+Repository = "https://github.com/samvardhan03/vikshep-quantum"
+Specification = "https://github.com/samvardhan03/vikshep-quantum/blob/main/spec/VQS-1.md"
+Issues = "https://github.com/samvardhan03/vikshep-quantum/issues"
+
+[tool.maturin]
+module-name = "vikshep_quantum._core"
+python-source = "python"
+features = ["python"]
+strip = true

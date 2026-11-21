@@ -1,0 +1,9 @@
+/target/
+**/*.rs.bk
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.pytest_cache/
+crates/vikshep-quantum-py/dist/
+/out/

@@ -1,0 +1,76 @@
+name: divergence
+
+# Manual: runs demo/divergence on the given platforms with the default
+# settings and one thread (5 to 10 minutes each), and compares the machines
+# with each other. It installs third-party simulators, so it is not part of
+# CI.
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Runner labels to run on, as a JSON list
+        type: string
+        default: '["ubuntu-latest", "ubuntu-24.04-arm", "macos-15", "windows-latest"]'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platforms) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1 # reads rust-toolchain.toml
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Build the wheel
+        run: |
+          python -m pip install "maturin>=1.9,<2"
+          maturin build --release --locked -m crates/vikshep-quantum-py/Cargo.toml -o dist
+      - name: Install the simulators
+        run: |
+          python -m pip install -r demo/divergence/requirements.txt
+          python -m pip install --no-index --find-links dist vikshep-quantum
+      - name: Run
+        run: |
+          python -I demo/divergence/divergence.py run --defaults-only \
+            --label "${{ matrix.os }}" --out "out/${{ matrix.os }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: divergence-${{ matrix.os }}
+          path: out/${{ matrix.os }}/summary.json
+          if-no-files-found: error
+
+  report:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: divergence-*
+          path: out
+      - name: Compare machines
+        run: |
+          python -m pip install numpy==2.4.6
+          dirs=(out/divergence-*)
+          python -I demo/divergence/divergence.py report "${dirs[@]}" > report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: divergence-report
+          path: report.md

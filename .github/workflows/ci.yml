@@ -1,0 +1,169 @@
+name: CI
+
+# Every push to main and every pull request: formatting, Clippy, the
+# determinism lint, tests, the conformance suite on four platforms with a
+# byte-for-byte comparison of the reports, and the Python wheel.
+# `bash scripts/ci-local.sh --python` runs the same checks on one machine.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    # bash on every OS (Git Bash on Windows) so redirections keep exact bytes.
+    shell: bash
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1 # reads rust-toolchain.toml
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Clippy on the Python extension module (feature python)
+        run: cargo clippy -p vikshep-quantum-py --features python --all-targets --locked -- -D warnings
+      - name: libm builds without optional features (VDS-1 section 4.2)
+        run: |
+          if cargo tree --locked -e features -i libm | grep -E 'libm feature'; then
+            echo "libm must be built with no features (feature unification enabled one)"
+            exit 1
+          fi
+
+  determinism-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: scripts/determinism-lint.sh
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo test --workspace --locked
+
+  # Conformance suite v1 on every platform, with the default thread count and
+  # with one thread; both reports must be identical.
+  conformance:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Record platform
+        run: |
+          rustc -vV
+          uname -a || true
+      - name: Conformance suite v1 (CPU reference)
+        run: |
+          mkdir -p out
+          cargo run --release --locked -p vikshep-qconformance -- \
+            run --report "out/report-${{ matrix.os }}.json"
+      - name: Same report with one thread
+        run: |
+          cargo run --release --locked -p vikshep-qconformance -- \
+            run --threads 1 --report out/report-1-thread.json
+          cmp out/report-1-thread.json "out/report-${{ matrix.os }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conformance-${{ matrix.os }}
+          path: out/report-${{ matrix.os }}.json
+          if-no-files-found: error
+
+  # Public, per-PR proof of cross-platform bit identity: every platform's
+  # report must be all-pass and identical byte for byte.
+  hash-diff:
+    needs: conformance
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: conformance-*
+          path: reports
+          merge-multiple: true
+      - name: Compare reports across platforms
+        run: |
+          set -euo pipefail
+          expected=4 # number of entries in the conformance matrix
+          shopt -s nullglob
+          reports=(reports/report-*.json)
+          status=0
+          if [ "${#reports[@]}" -ne "$expected" ]; then
+            echo "expected $expected reports, found ${#reports[@]}"
+            status=1
+          fi
+          for f in "${reports[@]}"; do
+            if ! jq -e '.summary.fail == 0 and .summary.pass == .summary.cases and .summary.cases > 0' "$f" > /dev/null; then
+              echo "FAILING CASES: $f"
+              jq '.summary' "$f" || true
+              status=1
+            fi
+            if cmp -s "${reports[0]}" "$f"; then
+              echo "identical: $f"
+            else
+              echo "DIFFERS:   $f"
+              diff "${reports[0]}" "$f" || true
+              status=1
+            fi
+          done
+          sha256sum "${reports[@]}"
+          exit $status
+
+  # abi3 wheel (Python >= 3.10) on every platform, kept as a workflow
+  # artifact (never published), tested with pytest: the conformance
+  # self-test, byte equality with the vectors, and the API tests.
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build the wheel
+        run: |
+          python -m pip install "maturin>=1.9,<2"
+          maturin build --release --locked -m crates/vikshep-quantum-py/Cargo.toml -o dist
+      - name: Install and test
+        run: |
+          python -m pip install numpy pytest
+          python -m pip install --no-index --find-links dist vikshep-quantum
+          cd "$RUNNER_TEMP"
+          python -I -m pytest -q "$GITHUB_WORKSPACE/crates/vikshep-quantum-py/tests"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
+          if-no-files-found: error
