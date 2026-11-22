@@ -185,8 +185,8 @@ jobs:
 
   # The Qiskit integration gives the same bits on every platform: the
   # records of seeded backend runs, Sampler shots and Estimator values must
-  # be identical byte for byte. Transpiled circuits are compared for
-  # information only (Qiskit's optimization passes are not reproducible).
+  # be identical byte for byte. Transpiled circuits and numpy's uniform
+  # draws are compared for information only.
   qiskit-diff:
     needs: python
     if: always()
@@ -219,10 +219,14 @@ jobs:
           done
           sha256sum "${records[@]}"
           exit $status
-      - name: Transpiled circuits across platforms (information only)
+      - name: Transpiled circuits and numpy draws across platforms (information only)
         if: always()
         run: |
           shopt -s nullglob
+          echo "numpy Generator.uniform(-pi, pi), 64 draws:"
+          for f in records/transpiled-*.json; do
+            printf '  %s  %s\n' "$(jq -cS ".numpy_uniform" "$f" | sha256sum | cut -c1-16)" "$f"
+          done
           for level in 0 1 2 3; do
             echo "optimization level $level:"
             for f in records/transpiled-*.json; do

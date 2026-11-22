@@ -50,6 +50,15 @@ backend's, Qiskit Aer's and Qiskit's `BasicSimulator`'s. With a basis of
 stable for every target. The README advises not transpiling, or using
 level 0 or 1. Not yet reported to Qiskit.
 
+Also found: in the first CI run of `qiskit-diff`, macOS arm64 differed from
+the other three platforms only in the run records of circuits whose angles
+came from numpy's `Generator.uniform(-pi, pi)`. Counts, shots and
+`Estimator` values were identical. A fused multiply-add in numpy's
+`low + (high - low) * u` explains it: fusing changes 70 of the 128 angles of
+one of those circuits, and none when `low` is 0, as for the circuits that
+matched. The record now builds its angles from integers, and the
+information-only part of the record keeps numpy's draws.
+
 ## Q1: cross-platform CI (complete)
 
 The conformance reports from these four platforms are all-pass and

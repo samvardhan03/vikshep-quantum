@@ -7,12 +7,19 @@ per-shot memory of ``VikshepSimulator``, of the ``Sampler`` bit arrays, the
 run manifests' hashes and the ``Estimator`` values as hex floats. CI writes
 it on every platform and requires the files to be identical byte for byte.
 
-TRANSPILED.json records the same circuits after ``transpile`` at
-optimization levels 0 to 3 (a hash of each transpiled circuit in QPY and of
-its results). It is compared for information only: Qiskit's optimization
-passes compute new gate angles in floating point, and with Qiskit 2.6.2 and
-this backend's gate set, levels 2 and 3 returned a different circuit on
-each call even with a fixed ``seed_transpiler``.
+Angles and coefficients are made from integers drawn by numpy and scaled
+in Python floats, one rounding each, so every platform builds the same
+circuits. numpy's ``Generator.uniform(-pi, pi)`` is not used: on macOS
+arm64 it gave different bits from the other platforms, as a fused
+multiply-add in ``low + (high - low) * u`` would.
+
+TRANSPILED.json is compared for information only. It records the same
+circuits after ``transpile`` at optimization levels 0 to 3 (a hash of each
+transpiled circuit in QPY and of its results): Qiskit's optimization passes
+compute new gate angles in floating point, and with Qiskit 2.6.2 and this
+backend's gate set, levels 2 and 3 returned a different circuit on each
+call even with a fixed ``seed_transpiler``. It also records numpy's
+``uniform(-pi, pi)`` draws, to show whether they differ.
 """
 
 import hashlib
@@ -39,9 +46,19 @@ def sha(data) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def grid(seed, shape, scale=1.0):
+    """Values k / 2**20 * scale for integers k in [-2**20, 2**20), as floats
+    with one rounding each (the division is exact), the same everywhere."""
+    k = np.random.default_rng(seed).integers(-(1 << 20), 1 << 20, size=shape)
+    return np.array([float(v) / (1 << 20) * scale for v in k.ravel().tolist()]).reshape(shape)
+
+
+def angles(seed, shape):
+    return grid(seed, shape, math.pi)
+
+
 def bound(ansatz, seed):
-    values = np.random.default_rng(seed).uniform(-math.pi, math.pi, ansatz.num_parameters)
-    return ansatz.assign_parameters(values)
+    return ansatz.assign_parameters(angles(seed, ansatz.num_parameters))
 
 
 def circuits():
@@ -87,7 +104,7 @@ def main(out_path, transpiled_path=None):
 
     ansatz = efficient_su2(8, reps=2)
     ansatz.measure_all()
-    sweep = np.random.default_rng(2).uniform(-math.pi, math.pi, (5, ansatz.num_parameters))
+    sweep = angles(2, (5, ansatz.num_parameters))
     pub = Sampler(seed=3).run([(ansatz, sweep)], shots=1000).result()[0]
     record["sampler"] = {
         "meas_sha256": sha(pub.data.meas.array.tobytes()),
@@ -96,9 +113,9 @@ def main(out_path, transpiled_path=None):
 
     rng = np.random.default_rng(4)
     labels = ["".join(rng.choice(list("IXYZ"), 10)) for _ in range(20)]
-    hamiltonian = SparsePauliOp(labels, rng.uniform(-1, 1, 20))
+    hamiltonian = SparsePauliOp(labels, grid(6, 20))
     est_ansatz = efficient_su2(10, reps=2)
-    values = np.random.default_rng(5).uniform(-math.pi, math.pi, (4, est_ansatz.num_parameters))
+    values = angles(5, (4, est_ansatz.num_parameters))
     evs = Estimator().run([(est_ansatz, hamiltonian, values)]).result()[0].data.evs
     record["estimator"] = [float(v).hex() for v in evs]
 
@@ -108,7 +125,8 @@ def main(out_path, transpiled_path=None):
     print(f"{out_path}: {sha(open(out_path, 'rb').read())} ({platform.platform()})")
 
     if transpiled_path:
-        info = {"versions": record["versions"]}
+        draws = np.random.default_rng(1).uniform(-math.pi, math.pi, 64)
+        info = {"versions": record["versions"], "numpy_uniform": [float(v).hex() for v in draws]}
         for level in (0, 1, 2, 3):
             tcircs = [transpile(c, backend, optimization_level=level, seed_transpiler=0) for c in circs]
             qpys = {}

@@ -143,6 +143,11 @@ Estimator().run([(bell, "ZZ")]).result()[0].data.evs  # exact, the same bits eve
   `sum_k c_k <P_k>`. Each `<P_k>` is a VQS-1 binary32 expectation value,
   and the sum is taken in binary64 in sorted label order. The precision
   must be 0; use the `Sampler` for shot-based estimates.
+- **The same inputs give the same bits.** Angles drawn with numpy's
+  `Generator.uniform(-pi, pi)` had different last bits on macOS arm64 in
+  our CI, which makes a different circuit. If the parameters must match
+  across machines, build them from integers, as
+  [`scripts/qiskit-record.py`](scripts/qiskit-record.py) does.
 - **Not supported:** mid-circuit measurement, a reset after a gate,
   classical control flow and noise models.
 - **If you transpile, use `optimization_level=0` or `1`.** With Qiskit
