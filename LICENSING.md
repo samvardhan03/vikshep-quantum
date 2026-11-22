@@ -34,11 +34,14 @@ Dependencies keep their own licences. Current direct dependencies:
 Through these, the build also uses `libm` 0.2.16 (MIT), `sha3` 0.12.0 (MIT
 OR Apache-2.0) and `num-complex` (MIT OR Apache-2.0). The Python package
 `vikshep-quantum` depends at run time on numpy (BSD-3-Clause), installed
-separately and not bundled.
+separately and not bundled. Its optional module `vikshep_quantum.qiskit`
+needs Qiskit (Apache-2.0), installed with the extra `qiskit` and not
+bundled.
 
 Test-only references, not distributed with any crate: pytest (MIT) runs the
 Python tests; Qiskit (Apache-2.0), when installed, is the reference of
-`crates/vikshep-quantum-py/tests/test_qiskit.py`. The comparison in
+`crates/vikshep-quantum-py/tests/test_qiskit.py` and
+`test_qiskit_backend.py`. The comparison in
 `demo/divergence` installs Qiskit and Qiskit Aer (Apache-2.0), and
 PennyLane and PennyLane Lightning (Apache-2.0), from
 `demo/divergence/requirements.txt`. No third-party code is included. The gate definitions follow the OpenQASM 3 specification.

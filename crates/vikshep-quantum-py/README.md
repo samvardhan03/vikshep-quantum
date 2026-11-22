@@ -32,7 +32,36 @@ The state is complex64 (binary32 components). Arrays passed in are
 converted with numpy and copied in row-major order before any computation,
 so strides, memory order and byte order never change a result.
 
-Why it matters: in a measured comparison on six machines, Qiskit Aer and
+## From Qiskit
+
+```bash
+pip install "vikshep-quantum[qiskit]"
+```
+
+```python
+from qiskit import QuantumCircuit
+from vikshep_quantum.qiskit import Estimator, Sampler, VikshepSimulator
+
+bell = QuantumCircuit(2)
+bell.h(0)
+bell.cx(0, 1)
+measured = bell.measure_all(inplace=False)
+
+VikshepSimulator().run(measured, shots=1000, seed_simulator=7).result().get_counts()
+Sampler(seed=7).run([measured], shots=1000).result()[0].data.meas.get_counts()
+Estimator().run([(bell, "ZZ")]).result()[0].data.evs
+```
+
+Circuits need not be transpiled: gates are converted directly or expanded
+with their Qiskit definitions. Measurements must come at the end of the
+circuit, and the estimator is exact. If you do transpile, use
+`optimization_level` 0 or 1: Qiskit's levels 2 and 3 can return a
+different circuit on each call. Details are in the
+[README](https://github.com/samvardhan03/vikshep-quantum#use-it-from-qiskit).
+
+## Why it matters
+
+In a measured comparison on six machines, Qiskit Aer and
 PennyLane Lightning gave different state bytes on different machines. In
 single precision, they also gave different seeded shots and different
 training runs. Vikshep Quantum gave the same bytes on all six

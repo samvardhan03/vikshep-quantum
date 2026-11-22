@@ -52,8 +52,8 @@ jobs:
         run: cargo package --locked -p vikshep-qcore -p vikshep-statevec
 
   # Five abi3 wheels (Python 3.10+), each tested with pytest where it runs
-  # natively: the conformance self-test, byte equality with the vectors and
-  # the API tests.
+  # natively: the conformance self-test, byte equality with the vectors, the
+  # API tests and the Qiskit integration.
   wheels:
     needs: version
     strategy:
@@ -84,7 +84,7 @@ jobs:
         if: matrix.test
         run: |
           python -m pip install --upgrade pip
-          python -m pip install numpy pytest
+          python -m pip install numpy pytest qiskit
           python -m pip install --no-index --find-links crates/vikshep-quantum-py/dist vikshep-quantum
           cd "$RUNNER_TEMP"
           python -I -m pytest -q "$GITHUB_WORKSPACE/crates/vikshep-quantum-py/tests"

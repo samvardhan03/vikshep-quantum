@@ -11,7 +11,7 @@ license = "AGPL-3.0-or-later"
 authors = [{ name = "Samvardhan Singh" }]
 dependencies = ["numpy>=1.22"]
 dynamic = ["version"]
-keywords = ["quantum", "simulator", "state-vector", "deterministic", "reproducibility"]
+keywords = ["quantum", "simulator", "state-vector", "deterministic", "reproducibility", "qiskit"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -19,6 +19,10 @@ classifiers = [
     "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Physics",
 ]
+
+[project.optional-dependencies]
+# vikshep_quantum.qiskit: a Qiskit backend and V2 primitives.
+qiskit = ["qiskit>=2.0"]
 
 [project.urls]
 Repository = "https://github.com/samvardhan03/vikshep-quantum"
@@ -30,3 +34,5 @@ module-name = "vikshep_quantum._core"
 python-source = "python"
 features = ["python"]
 strip = true
+# Bytecode left by local test runs is never shipped.
+exclude = ["python/**/__pycache__/**"]

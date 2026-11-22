@@ -7,7 +7,57 @@ Current release: **0.1.0**. It contains:
 - conformance suite v1;
 - the Python package `vikshep-quantum`.
 
-Next: integrations (Q4), then GPU backends.
+In progress: integrations (Q4). The Qiskit backend and primitives are on
+`main` and not released yet; the PennyLane device is next. GPU backends
+come after.
+
+## Q4: Qiskit integration (on `main`, not released)
+
+`vikshep_quantum.qiskit` (extra `qiskit`, Qiskit 2.0 or later):
+
+- `VikshepSimulator`, a `BackendV2`: counts, per-shot memory and a run
+  manifest per circuit;
+- `Sampler` and `Estimator`, the V2 primitives; the estimator is exact;
+- `from_qiskit`, which converts a Qiskit circuit into a
+  `vikshep_quantum.Circuit`.
+
+Gates with a VQS-1 equivalent become one operation with the same
+parameters. Other gates are expanded with their Qiskit definitions, so the
+conversion computes no trigonometry of its own.
+
+Checked:
+
+- `tests/test_qiskit_backend.py` passes with Qiskit 2.6.2 (Python 3.13)
+  and Qiskit 2.0.0 (Python 3.11): 120 tests.
+  - Every standard gate, alone and with two open or closed controls, gives
+    Qiskit's `Statevector` up to global phase.
+  - So do QFT, Pauli evolution, `efficient_su2`, random circuits,
+    `initialize` and circuits transpiled at levels 0 to 3.
+  - Counts equal `BasicSimulator`'s on deterministic circuits.
+  - The `Sampler`'s bit layout equals `StatevectorSampler`'s.
+  - `Estimator` values agree with `StatevectorEstimator` to 1e-5.
+  - Backend memory, `Sampler` shots and `Estimator` values equal the
+    native API bit for bit, for 1 and 4 threads.
+- The CI job `qiskit-diff` compares records of seeded workloads
+  (`scripts/qiskit-record.py`) from Linux x86_64 and AArch64, macOS arm64
+  and Windows x86_64, on every pull request.
+
+Found on the way: with Qiskit 2.6.2, `transpile` at optimization levels 2
+and 3 returned a different circuit on every call, even with a fixed
+`seed_transpiler`. This happened for targets with many gates: this
+backend's, Qiskit Aer's and Qiskit's `BasicSimulator`'s. With a basis of
+`u` and `cx`, or `rz`, `sx`, `x` and `cx`, it was stable, and level 1 was
+stable for every target. The README advises not transpiling, or using
+level 0 or 1. Not yet reported to Qiskit.
+
+Also found: in the first CI run of `qiskit-diff`, macOS arm64 differed from
+the other three platforms only in the run records of circuits whose angles
+came from numpy's `Generator.uniform(-pi, pi)`. Counts, shots and
+`Estimator` values were identical. A fused multiply-add in numpy's
+`low + (high - low) * u` explains it: fusing changes 70 of the 128 angles of
+one of those circuits, and none when `low` is 0, as for the circuits that
+matched. The record now builds its angles from integers, and the
+information-only part of the record keeps numpy's draws.
 
 ## Q1: cross-platform CI (complete)
 
@@ -106,8 +156,8 @@ Q3) and of specialised CPU kernels that must reproduce the same bytes.
 
 ## Next milestones
 
-- **Q4: integrations.** PennyLane device and Qiskit backend plugins,
-  OpenQASM 3 import.
+- **Q4: integrations.** Qiskit backend and primitives (on `main`), then the
+  PennyLane device and OpenQASM 3 import.
 - **Q2 and Q3: GPU backends**, proprietary, following the model of
   `vikshep-compute-pro`. Each must pass the open suite v1 on its GPU.
   - **Q2, Metal:** the kernel of VQS-1 section 5 in MSL with the settings

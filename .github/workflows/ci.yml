@@ -2,7 +2,8 @@ name: CI
 
 # Every push to main and every pull request: formatting, Clippy, the
 # determinism lint, tests, the conformance suite on four platforms with a
-# byte-for-byte comparison of the reports, and the Python wheel.
+# byte-for-byte comparison of the reports, and the Python wheel with the
+# Qiskit integration, whose seeded results are compared the same way.
 # `bash scripts/ci-local.sh --python` runs the same checks on one machine.
 on:
   push:
@@ -139,7 +140,9 @@ jobs:
 
   # abi3 wheel (Python >= 3.10) on every platform, kept as a workflow
   # artifact (never published), tested with pytest: the conformance
-  # self-test, byte equality with the vectors, and the API tests.
+  # self-test, byte equality with the vectors, the API tests and the Qiskit
+  # integration. Each platform also records seeded Qiskit workloads
+  # (scripts/qiskit-record.py) for the qiskit-diff job.
   python:
     strategy:
       fail-fast: false
@@ -158,12 +161,75 @@ jobs:
           maturin build --release --locked -m crates/vikshep-quantum-py/Cargo.toml -o dist
       - name: Install and test
         run: |
-          python -m pip install numpy pytest
+          python -m pip install numpy pytest qiskit
           python -m pip install --no-index --find-links dist vikshep-quantum
           cd "$RUNNER_TEMP"
           python -I -m pytest -q "$GITHUB_WORKSPACE/crates/vikshep-quantum-py/tests"
+      - name: Record seeded Qiskit workloads
+        run: |
+          mkdir -p out
+          cd "$RUNNER_TEMP"
+          python -I "$GITHUB_WORKSPACE/scripts/qiskit-record.py" \
+            "$GITHUB_WORKSPACE/out/record-${{ matrix.os }}.json" \
+            "$GITHUB_WORKSPACE/out/transpiled-${{ matrix.os }}.json"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}
           path: dist/*.whl
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qiskit-${{ matrix.os }}
+          path: out/*.json
+          if-no-files-found: error
+
+  # The Qiskit integration gives the same bits on every platform: the
+  # records of seeded backend runs, Sampler shots and Estimator values must
+  # be identical byte for byte. Transpiled circuits and numpy's uniform
+  # draws are compared for information only.
+  qiskit-diff:
+    needs: python
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qiskit-*
+          path: records
+          merge-multiple: true
+      - name: Compare records across platforms
+        run: |
+          set -euo pipefail
+          expected=4 # number of entries in the python matrix
+          shopt -s nullglob
+          records=(records/record-*.json)
+          status=0
+          if [ "${#records[@]}" -ne "$expected" ]; then
+            echo "expected $expected records, found ${#records[@]}"
+            status=1
+          fi
+          for f in "${records[@]}"; do
+            if cmp -s "${records[0]}" "$f"; then
+              echo "identical: $f"
+            else
+              echo "DIFFERS:   $f"
+              diff "${records[0]}" "$f" || true
+              status=1
+            fi
+          done
+          sha256sum "${records[@]}"
+          exit $status
+      - name: Transpiled circuits and numpy draws across platforms (information only)
+        if: always()
+        run: |
+          shopt -s nullglob
+          echo "numpy Generator.uniform(-pi, pi), 64 draws:"
+          for f in records/transpiled-*.json; do
+            printf '  %s  %s\n' "$(jq -cS ".numpy_uniform" "$f" | sha256sum | cut -c1-16)" "$f"
+          done
+          for level in 0 1 2 3; do
+            echo "optimization level $level:"
+            for f in records/transpiled-*.json; do
+              printf '  %s  %s\n' "$(jq -cS ".level_$level" "$f" | sha256sum | cut -c1-16)" "$f"
+            done
+          done
