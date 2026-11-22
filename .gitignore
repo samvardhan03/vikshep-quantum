@@ -6,4 +6,7 @@ __pycache__/
 .DS_Store
 .pytest_cache/
 crates/vikshep-quantum-py/dist/
+# left by `maturin develop`
+crates/vikshep-quantum-py/python/vikshep_quantum/*.so
+crates/vikshep-quantum-py/python/vikshep_quantum/*.pyd
 /out/

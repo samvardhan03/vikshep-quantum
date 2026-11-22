@@ -4,8 +4,8 @@
 #   bash scripts/ci-local.sh            fmt, clippy, lint, tests, conformance
 #   bash scripts/ci-local.sh --python   also build the wheel and run pytest
 #                                       (in a throwaway virtualenv; needs
-#                                       maturin and network access for numpy
-#                                       and pytest)
+#                                       maturin and network access for numpy,
+#                                       pytest and qiskit)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 step() { printf '\n=== %s ===\n' "$1"; }
@@ -36,9 +36,13 @@ echo "reports identical; SHA-256 $(shasum -a 256 "$tmp/report.json" | cut -d' ' 
 if [ "${1:-}" = "--python" ]; then
     step "wheel and pytest"
     python3 -m venv "$tmp/venv"
-    "$tmp/venv/bin/pip" install -q numpy pytest
+    "$tmp/venv/bin/pip" install -q numpy pytest qiskit
     maturin build --release --locked -m crates/vikshep-quantum-py/Cargo.toml -o "$tmp/dist"
     "$tmp/venv/bin/pip" install -q --no-index --find-links "$tmp/dist" vikshep-quantum
     (cd "$tmp" && "$tmp/venv/bin/python" -I -m pytest -q "$OLDPWD/crates/vikshep-quantum-py/tests")
+    step "seeded Qiskit workloads (run twice: the records must be identical)"
+    (cd "$tmp" && "$tmp/venv/bin/python" -I "$OLDPWD/scripts/qiskit-record.py" "$tmp/record-1.json")
+    (cd "$tmp" && "$tmp/venv/bin/python" -I "$OLDPWD/scripts/qiskit-record.py" "$tmp/record-2.json")
+    cmp "$tmp/record-1.json" "$tmp/record-2.json"
 fi
 printf '\nALL LOCAL CHECKS PASSED\n'

@@ -21,7 +21,8 @@ specification VDS-1); this repository adds the quantum layer, specified in
 >
 > Suite v1 gives byte-identical reports on Linux x86_64 and AArch64, macOS
 > arm64 and x86_64, and Windows x86_64. GPU backends are not released yet.
-> See [STATUS.md](STATUS.md).
+> The [Qiskit integration](#use-it-from-qiskit) is on `main` and not
+> released yet. See [STATUS.md](STATUS.md).
 
 ```bash
 pip install vikshep-quantum
@@ -98,6 +99,61 @@ print(vq.conformance_selftest()["failed"])  # 0
 Qubit 0 is the least significant bit of a basis-state index, as in Qiskit.
 See [`examples/quickstart.py`](examples/quickstart.py).
 
+## Use it from Qiskit
+
+`vikshep_quantum.qiskit` has a Qiskit backend and the V2 primitives
+(Qiskit 2.0 or later). It is not released yet. Until it is, build the wheel
+from this repository as above and `pip install qiskit`. From the next
+release, install with:
+
+```bash
+pip install "vikshep-quantum[qiskit]"
+```
+
+```python
+from qiskit import QuantumCircuit
+from vikshep_quantum.qiskit import Estimator, Sampler, VikshepSimulator
+
+bell = QuantumCircuit(2)
+bell.h(0)
+bell.cx(0, 1)
+measured = bell.measure_all(inplace=False)
+
+result = VikshepSimulator().run(measured, shots=1000, seed_simulator=7).result()
+result.get_counts()                                   # the same on every machine
+result.results[0].metadata["manifest"]                # run record of the final state
+
+Sampler(seed=7).run([measured], shots=1000).result()[0].data.meas.get_counts()
+Estimator().run([(bell, "ZZ")]).result()[0].data.evs  # exact, the same bits everywhere
+```
+
+- **No transpiling needed.** A gate with a VQS-1 equivalent (`h`, `rz`,
+  `u`, `cx`, `cp`, `crx`, `ccx`, `mcx`, `unitary`, ...) becomes one VQS-1
+  operation with the same parameters. Every other gate (`rzz`, `ecr`,
+  `QFTGate`, `PauliEvolutionGate`, ...) is replaced by its Qiskit
+  definition, which passes the angles through. The conversion computes no
+  sine, cosine or matrix product of its own. `from_qiskit(circuit)` returns
+  the converted `vikshep_quantum.Circuit`.
+- **Seeds and streams.** Circuit `i` of a `run` call draws its shots from
+  the Philox stream `(seed_simulator, i)`, so
+  `vikshep_quantum.Simulator.sample(shots, seed, i)` reproduces them. The
+  `Sampler` numbers the circuits of a call across pubs and parameter
+  bindings. Without a seed, a random one is used and reported in the result.
+- **Exact estimator.** An observable `sum_k c_k P_k` is evaluated as
+  `sum_k c_k <P_k>`. Each `<P_k>` is a VQS-1 binary32 expectation value,
+  and the sum is taken in binary64 in sorted label order. The precision
+  must be 0; use the `Sampler` for shot-based estimates.
+- **Not supported:** mid-circuit measurement, a reset after a gate,
+  classical control flow and noise models.
+- **If you transpile, use `optimization_level=0` or `1`.** With Qiskit
+  2.6.2, levels 2 and 3 (2 is the default of `transpile`) returned a
+  different circuit on every call for targets with many gates, even with a
+  fixed `seed_transpiler`. This happened with this backend, with Qiskit
+  Aer and with Qiskit's `BasicSimulator`. The results of a given circuit
+  are bit-identical; the circuit the transpiler returns is not.
+
+See [`examples/qiskit_quickstart.py`](examples/qiskit_quickstart.py).
+
 ## Quickstart (Rust)
 
 ```rust
@@ -121,7 +177,8 @@ let manifest = sim.manifest()?;
 |---|---|
 | Same bytes for any thread count | Rust and Python tests compare 1, 2, 3, 5 and 8 threads on 18-qubit circuits |
 | Same bytes on every platform | Suite v1 reports are all-pass and byte-identical on Linux x86_64 and AArch64, macOS arm64 and Windows x86_64 (the `hash-diff` job of [CI](.github/workflows/ci.yml), on every pull request) and on macOS x86_64 (locally) |
-| Correct results | Agreement with independent binary64 simulators (Rust and numpy), the closed-form QFT, dense Pauli operators, sample statistics, and Qiskit 2.6.2 `Statevector` |
+| Same Qiskit results on every platform | The `qiskit-diff` job of [CI](.github/workflows/ci.yml) compares records of seeded backend runs, `Sampler` shots and `Estimator` values from the same four platforms, on every pull request |
+| Correct results | Agreement with independent binary64 simulators (Rust and numpy), the closed-form QFT, dense Pauli operators, sample statistics, and Qiskit 2.6.2 `Statevector`. The Qiskit integration is tested against Qiskit's `Statevector`, `BasicSimulator`, `StatevectorSampler` and `StatevectorEstimator`, with Qiskit 2.0.0 and 2.6.2 |
 | The suite detects non-conforming arithmetic | An independent kernel with the specified arithmetic passes all 257 cases; the same kernel without the flush, with after-rounding tininess, or skipping zero matrix entries fails 27, 11 and 4 cases |
 
 ---
@@ -133,10 +190,11 @@ let manifest = sim.manifest()?;
 | `crates/vikshep-qcore` | Tier-1 complex arithmetic, gate matrices, circuits, Pauli strings, the normative kernels and the backend trait | AGPL-3.0 |
 | `crates/vikshep-statevec` | CPU reference backend (multi-threaded, bit-identical) and the `Simulator` | AGPL-3.0 |
 | `crates/vikshep-qconformance` | Conformance suite v1 (257 cases), runner and CLI | AGPL-3.0 |
-| `crates/vikshep-quantum-py` | Python wheel `vikshep-quantum` (abi3, Python 3.10+) | AGPL-3.0 |
+| `crates/vikshep-quantum-py` | Python wheel `vikshep-quantum` (abi3, Python 3.10+), with the Qiskit backend and primitives in `python/vikshep_quantum/qiskit` | AGPL-3.0 |
 | `spec/VQS-1.md` | The specification | CC-BY-4.0 |
 | `conformance/vectors/v1` | Expected output hashes | CC-BY-4.0 |
 | `scripts/determinism-lint.sh` | Rejects platform-libm and fused float calls | AGPL-3.0 |
+| `scripts/qiskit-record.py` | Seeded Qiskit workloads that CI records and compares across platforms | AGPL-3.0 |
 | `demo/divergence` | The cross-machine comparison with Qiskit Aer and PennyLane Lightning, and its results | AGPL-3.0 |
 
 ## Conformance

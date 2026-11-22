@@ -31,7 +31,7 @@ Python package (needs a Rust toolchain, Python 3.10 or later and maturin):
 
 ```sh
 maturin build --release --locked -m crates/vikshep-quantum-py/Cargo.toml -o dist
-python -m pip install numpy pytest
+python -m pip install numpy pytest qiskit
 python -m pip install --no-index --find-links dist vikshep-quantum
 python -I -m pytest -q crates/vikshep-quantum-py/tests
 ```
