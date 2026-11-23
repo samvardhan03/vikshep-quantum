@@ -12,17 +12,17 @@ open core's ([`vikshep-compute`](https://github.com/samvardhan03/vikshep-compute
 specification VDS-1); this repository adds the quantum layer, specified in
 [`spec/VQS-1.md`](spec/VQS-1.md).
 
-> **Status: 0.1.0.** This release has:
+> **Status: 0.2.0.** This release has:
 >
 > - the CPU reference;
 > - the specification;
 > - conformance suite v1;
-> - the Python package.
+> - the Python package, with a [Qiskit backend and primitives](#use-it-from-qiskit)
+>   (new in 0.2.0).
 >
 > Suite v1 gives byte-identical reports on Linux x86_64 and AArch64, macOS
 > arm64 and x86_64, and Windows x86_64. GPU backends are not released yet.
-> The [Qiskit integration](#use-it-from-qiskit) is on `main` and not
-> released yet. See [STATUS.md](STATUS.md).
+> See [STATUS.md](STATUS.md).
 
 ```bash
 pip install vikshep-quantum
@@ -102,9 +102,8 @@ See [`examples/quickstart.py`](examples/quickstart.py).
 ## Use it from Qiskit
 
 `vikshep_quantum.qiskit` has a Qiskit backend and the V2 primitives
-(Qiskit 2.0 or later). It is not released yet. Until it is, build the wheel
-from this repository as above and `pip install qiskit`. From the next
-release, install with:
+(Qiskit 2.0 or later), from version 0.2.0. Install it with the `qiskit`
+extra:
 
 ```bash
 pip install "vikshep-quantum[qiskit]"
