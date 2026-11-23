@@ -1,17 +1,24 @@
 # Status
 
-Current release: **0.1.0**. It contains:
+Current release: **0.2.0**. It contains:
 
 - the CPU reference;
 - the specification VQS-1;
 - conformance suite v1;
-- the Python package `vikshep-quantum`.
+- the Python package `vikshep-quantum`, with the Qiskit integration (new in
+  0.2.0).
 
-In progress: integrations (Q4). The Qiskit backend and primitives are on
-`main` and not released yet; the PennyLane device is next. GPU backends
-come after.
+0.2.0 changes no result. The conformance vectors, and every state, sample
+and expectation value, are those of 0.1.0. The Rust code is that of 0.1.0,
+so the crates `vikshep-qcore` and `vikshep-statevec` have the same API;
+their version follows the workspace. A run manifest records the new
+version in `execution.package_version`, which `manifest_hash` does not
+cover.
 
-## Q4: Qiskit integration (on `main`, not released)
+In progress: integrations (Q4). The Qiskit backend and primitives are
+released; the PennyLane device is next. GPU backends come after.
+
+## Q4: Qiskit integration (released in 0.2.0)
 
 `vikshep_quantum.qiskit` (extra `qiskit`, Qiskit 2.0 or later):
 
@@ -117,14 +124,14 @@ the same bytes on all of them.
 
 | Check | Result |
 |---|---|
-| `cargo test --workspace` | 45 tests pass |
+| `cargo test --workspace` | 47 tests pass, doctests included |
 | `cargo clippy` (workspace, and the bindings with `--features python`), `-D warnings` | clean |
 | `cargo fmt --check`, `scripts/determinism-lint.sh` | clean |
 | Conformance suite v1, CPU reference | 257 / 257, identical reports with 1 and 8 threads (report SHA-256 `53f352339ee1d98180dd0045ccff5c1470e7efe97f2eefbe0ae2d8ae8969fd3d`) |
 | Independent kernel, specified arithmetic | 257 / 257 |
 | Same kernel, no flush / after-rounding tininess / skipped zero entries | 27 / 11 / 4 cases fail, as they must |
 | Largest amplitude error against binary64 oracle (42 random circuits, 1 to 7 qubits, 80 operations) | 3.92e-7 |
-| Python tests (abi3 wheel on Python 3.11) | 25 pass with Qiskit installed; without it the 6 Qiskit tests are skipped and 19 pass |
+| Python tests (abi3 wheel 0.2.0 on Python 3.11) | 145 pass with Qiskit 2.6.2 installed; without it the 126 Qiskit tests are skipped and 19 pass |
 | Qiskit 2.6.2 cross-check | 6 pass (15 random circuits of 1 to 8 qubits, and a 6-qubit QFT) |
 | Sample statistics (5-qubit GHZ, 200 seeds of 1000 shots) | mean 500.1 and standard deviation 15.83 of the count of 11111, against 500 and 15.81 for a fair binomial |
 
@@ -159,7 +166,7 @@ Q3) and of specialised CPU kernels that must reproduce the same bytes.
 
 ## Next milestones
 
-- **Q4: integrations.** Qiskit backend and primitives (on `main`), then the
+- **Q4: integrations.** Qiskit backend and primitives (0.2.0), then the
   PennyLane device and OpenQASM 3 import.
 - **Q2 and Q3: GPU backends**, proprietary, following the model of
   `vikshep-compute-pro`. Each must pass the open suite v1 on its GPU.
