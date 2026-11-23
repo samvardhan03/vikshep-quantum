@@ -46,9 +46,11 @@ Found on the way: with Qiskit 2.6.2, `transpile` at optimization levels 2
 and 3 returned a different circuit on every call, even with a fixed
 `seed_transpiler`. This happened for targets with many gates: this
 backend's, Qiskit Aer's and Qiskit's `BasicSimulator`'s. With a basis of
-`u` and `cx`, or `rz`, `sx`, `x` and `cx`, it was stable, and level 1 was
-stable for every target. The README advises not transpiling, or using
-level 0 or 1. Not yet reported to Qiskit.
+`u` and `cx`, or `rz`, `sx`, `x` and `cx`, it was stable. Level 1 was
+stable on each machine but not across machines: in CI, macOS arm64,
+Windows and Linux each got a different level-1 circuit. Level 0 gave the
+same circuit on all four platforms. The README advises not transpiling, or
+using level 0. Not yet reported to Qiskit.
 
 Also found: in the first CI run of `qiskit-diff`, macOS arm64 differed from
 the other three platforms only in the run records of circuits whose angles
@@ -56,8 +58,9 @@ came from numpy's `Generator.uniform(-pi, pi)`. Counts, shots and
 `Estimator` values were identical. A fused multiply-add in numpy's
 `low + (high - low) * u` explains it: fusing changes 70 of the 128 angles of
 one of those circuits, and none when `low` is 0, as for the circuits that
-matched. The record now builds its angles from integers, and the
-information-only part of the record keeps numpy's draws.
+matched. The record now builds its angles from integers. In the next run,
+numpy's 64 recorded draws differed on macOS arm64 and agreed on the other
+three platforms, and the four records were identical.
 
 ## Q1: cross-platform CI (complete)
 

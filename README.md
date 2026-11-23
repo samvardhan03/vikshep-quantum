@@ -150,12 +150,16 @@ Estimator().run([(bell, "ZZ")]).result()[0].data.evs  # exact, the same bits eve
   [`scripts/qiskit-record.py`](scripts/qiskit-record.py) does.
 - **Not supported:** mid-circuit measurement, a reset after a gate,
   classical control flow and noise models.
-- **If you transpile, use `optimization_level=0` or `1`.** With Qiskit
-  2.6.2, levels 2 and 3 (2 is the default of `transpile`) returned a
-  different circuit on every call for targets with many gates, even with a
-  fixed `seed_transpiler`. This happened with this backend, with Qiskit
-  Aer and with Qiskit's `BasicSimulator`. The results of a given circuit
-  are bit-identical; the circuit the transpiler returns is not.
+- **If you transpile, use `optimization_level=0`.** The results of a given
+  circuit are bit-identical; the circuit the transpiler returns may not be.
+  With Qiskit 2.6.2, in our CI:
+  - Level 0 returned the same circuit on all four platforms.
+  - Level 1 returned the same circuit on each machine, but a different one
+    on macOS arm64, Windows and Linux.
+  - Levels 2 and 3 (2 is the default of `transpile`) returned a different
+    circuit on every call for targets with many gates, even with a fixed
+    `seed_transpiler`. This happened with this backend, with Qiskit Aer
+    and with Qiskit's `BasicSimulator`.
 
 See [`examples/qiskit_quickstart.py`](examples/qiskit_quickstart.py).
 
