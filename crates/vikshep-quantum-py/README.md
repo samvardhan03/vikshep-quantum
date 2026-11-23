@@ -55,8 +55,8 @@ Estimator().run([(bell, "ZZ")]).result()[0].data.evs
 Circuits need not be transpiled: gates are converted directly or expanded
 with their Qiskit definitions. Measurements must come at the end of the
 circuit, and the estimator is exact. If you do transpile, use
-`optimization_level` 0 or 1: Qiskit's levels 2 and 3 can return a
-different circuit on each call. Details are in the
+`optimization_level=0`: at higher levels Qiskit can return a different
+circuit on another machine, or on each call. Details are in the
 [README](https://github.com/samvardhan03/vikshep-quantum#use-it-from-qiskit).
 
 ## Why it matters
